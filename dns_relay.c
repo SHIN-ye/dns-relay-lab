@@ -109,8 +109,6 @@ int main() {
                     1. before finishing this part, make sure that you have finished other TODO parts
                     2. functions in dns_dgram_utils.c and dns_relay_utils.h may help a lot
                     3. remember to call log_result() after sending a datagram
-                Important:
-                    1. in this lab, consider that the dns request datagram contains ONLY one entry in question section for convenience.
             */
         }
     }

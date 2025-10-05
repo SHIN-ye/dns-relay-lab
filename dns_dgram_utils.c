@@ -13,7 +13,9 @@
     output:
         name: the resolved domain name
         question: other fields except domain name in question section
-    note: support both sequences of labels and pointer
+    note:
+        - support both sequences of labels and pointer
+        - in this lab, consider that the dns request datagram contains ONLY one entry in question section for convenience.
 */
 void parse_question_section(char *name, dns_question_t *question, const unsigned char *buf) {
     /* 
