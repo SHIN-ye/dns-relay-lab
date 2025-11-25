@@ -66,6 +66,28 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], const char *
     /* 
         TODO: implement this function 
     */
+    FILE *fp = fopen(file_path, "r");
+    if (fp == NULL) {
+        return 0;
+    }
+    int count = 0;
+    char line[1024];
+    
+    while (fgets(line, sizeof(line), fp)) {
+        size_t len = strlen(line);
+        if (len > 0 && line[len - 1] == '\n') {
+            line[len - 1] = '\0'; // È¥µô»»ÐÐ·û
+        }
+
+        if (line[0] == '#' || strlen(line) == 0) {
+            continue;
+        }
+
+        
+
+    }
+
+
     return 0;
 }
 
