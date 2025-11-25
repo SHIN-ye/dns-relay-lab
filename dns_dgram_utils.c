@@ -82,7 +82,6 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], const char *
         if (line[0] == '#' || strlen(line) == 0) {
             continue;
         }
-
         
 
     }
