@@ -21,6 +21,32 @@ void parse_question_section(char *name, dns_question_t *question, const unsigned
     /* 
         TODO: implement this function 
     */
+    const unsigned char *p = buf + DNS_HEADER_SIZE;
+    int name_pos = 0;
+
+    while(1) {
+        unsigned char len = *p++;
+        if (len == 0) {
+            break;
+        }
+
+        for (int i = 0; i < len; i++) {
+            name[name_pos++] = (char)(*p++);
+        }    
+
+        name[name_pos++] = '.';
+    }
+
+    if (name_pos > 0 && name[name_pos - 1] == '.') {
+        name_pos--;
+    }
+
+    name[name_pos] = '\0';
+    
+    const dns_question_t *q = (const dns_question_t *)p;
+    question->type = ntohs(q->type);
+    question->cls = ntohs(q->cls); // 网络字节序转主机字节序
+
     return;
 }
 
