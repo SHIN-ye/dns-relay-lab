@@ -137,8 +137,45 @@ int transform_to_response(unsigned char *buf, int len, const char ip[MAX_ANSWER_
         memcpy(buf + current_len, &name_ptr, 2);
         current_len += 2;
 
-        
+        struct in_addr addr4;
+        struct in6_addr addr6;
+        int type;
+        int rdlen;
 
+        if (inet_pton(AF_INET, ip[i], &addr4) == 1) {
+            type = 1;
+            rdlen = 4;
+        } else if (inet_pton(AF_INET6, ip[i], &addr6) == 1) {
+            type = 28;
+            rdlen = 16;
+        } else {
+            continue; // 无效的IP地址，跳过
+        }
+
+        uint16_t type_net = htons(type);
+        memcpy(buf + current_len, &type_net, 2);
+        current_len += 2;
+
+        uint16_t class_net = htons(1); // 写入 CLASS (IN = 1)
+        memcpy(buf + current_len, &class_net, 2);   
+        current_len += 2;
+
+        uint32_t ttl_net = htonl(60); // 写入 TTL (例如 60 秒)
+        memcpy(buf + current_len, &ttl_net, 4);
+        current_len += 4;
+
+        uint16_t rdlen_net = htons(rdlen); // 写入 RDLENGTH
+        memcpy(buf + current_len, &rdlen_net, 2);
+        current_len += 2;   
+
+        if (type == 1) {
+            memcpy(buf + current_len, &addr4, 4);
+            current_len += 4;
+        } else {
+            memcpy(buf + current_len, &addr6, 16);
+            current_len += 16;
+        }
+        
     }
     
     return len;
