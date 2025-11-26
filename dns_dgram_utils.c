@@ -125,5 +125,21 @@ int transform_to_response(unsigned char *buf, int len, const char ip[MAX_ANSWER_
     /* 
         TODO: implement this function 
     */
+    dns_header_t *header = (dns_header_t *)buf;
+    header->qr = 1;
+    header->aa = 1;
+    header->ra = 1;
+    header->rcode = 0; // 正确响应
+    header->ancount = htons(count); // 转网络字节序
+    int current_len = len;
+    for (int i = 0; i < count; i++) {
+        uint16_t name_ptr = htons(0xC00C);
+        memcpy(buf + current_len, &name_ptr, 2);
+        current_len += 2;
+
+        
+
+    }
+    
     return len;
 }
