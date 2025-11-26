@@ -21,7 +21,7 @@ void parse_question_section(char *name, dns_question_t *question, const unsigned
     /* 
         TODO: implement this function 
     */
-    const unsigned char *p = buf + DNS_HEADER_SIZE;
+    const unsigned char *p = buf + DNS_HEADER_SIZE; 
     int name_pos = 0;
 
     while(1) {
@@ -71,7 +71,7 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], const char *
         return 0;
     }
     int count = 0;
-    char line[1024];
+    char line[1024]; // 字符串是只读的, 所以必须使用数组来存储读取的行
     
     while (fgets(line, sizeof(line), fp)) {
         size_t len = strlen(line);
@@ -83,11 +83,26 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], const char *
             continue;
         }
         
+        char *token = strtok(line, "\t");  // 一段一段读取字符串      
+        if (token == NULL) {
+            continue; // 如果没有找到IP地址，跳过这一行
+        }
 
+        char cur_ip[MAX_IP_BUFFER_SIZE];
+        strncpy(cur_ip, token, MAX_IP_BUFFER_SIZE - 1);
+        cur_ip[MAX_IP_BUFFER_SIZE - 1] = '\0';
+
+        while((token = strtok(NULL, "\t"))) {
+            if (strcmp(token, name) == 0) {
+                strncpy(ip[count], cur_ip, MAX_IP_BUFFER_SIZE - 1);
+                ip[count][MAX_IP_BUFFER_SIZE - 1] = '\0';
+                count++;
+            }
+            break; // 每行只处理第一个域名
+        }
     }
-
-
-    return 0;
+    fclose(fp);
+    return count;
 }
 
 /**
