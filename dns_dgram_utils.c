@@ -127,7 +127,7 @@ int transform_to_response(unsigned char *buf, int len, const char ip[MAX_ANSWER_
     */
     dns_header_t *header = (dns_header_t *)buf;
     header->qr = 1;
-    header->aa = 1;
+    header->aa = 1; 
     header->ra = 1;
     header->rcode = 0; // 正确响应
     header->ancount = htons(count); // 转网络字节序

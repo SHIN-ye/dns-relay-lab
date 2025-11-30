@@ -110,6 +110,7 @@ int main() {
                     2. functions in dns_dgram_utils.c and dns_relay_utils.h may help a lot
                     3. remember to call log_result() after sending a datagram
             */
+            
         }
     }
 
