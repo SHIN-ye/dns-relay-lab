@@ -3,6 +3,8 @@
 #include <netinet/in.h>
 #include <stdint.h>
 #include <sys/socket.h>
+#include <stdio.h>
+#include <string.h>
 #include "dns_relay.h"
 #include "dns_dgram_utils.h"
 
@@ -122,9 +124,8 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], const char *
         - need to support both IPv4 and IPv6
  */
 int transform_to_response(unsigned char *buf, int len, const char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], int count, const dns_question_t *question) {
-    /* 
-        TODO: implement this function 
-    */
+    (void)question; // suppress unused parameter warning
+    // 1. ÐÞ¸Ä DNS Header
     dns_header_t *header = (dns_header_t *)buf;
     header->qr = 1;
     header->aa = 1; 
@@ -175,7 +176,7 @@ int transform_to_response(unsigned char *buf, int len, const char ip[MAX_ANSWER_
             memcpy(buf + current_len, &addr6, 16);
             current_len += 16;
         }
-        
+
     }
     
     return len;
