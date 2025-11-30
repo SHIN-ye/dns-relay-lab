@@ -96,7 +96,7 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], const char *
 
         while((token = strtok(NULL, "\t"))) {
             if (strcmp(token, name) == 0) {
-                strncpy(ip[count], cur_ip, MAX_IP_BUFFER_SIZE - 1);
+                memcpy(ip[count], cur_ip, MAX_IP_BUFFER_SIZE);
                 ip[count][MAX_IP_BUFFER_SIZE - 1] = '\0';
                 count++;
             }
@@ -124,7 +124,7 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], const char *
         - need to support both IPv4 and IPv6
  */
 int transform_to_response(unsigned char *buf, int len, const char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], int count, const dns_question_t *question) {
-    (void)question; // suppress unused parameter warning
+    (void)question;
     // 1. ÐÞ¸Ä DNS Header
     dns_header_t *header = (dns_header_t *)buf;
     header->qr = 1;
