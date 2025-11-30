@@ -110,8 +110,18 @@ int main() {
                     2. functions in dns_dgram_utils.c and dns_relay_utils.h may help a lot
                     3. remember to call log_result() after sending a datagram
             */
-            
+            parse_question_section(name, &question, buf);
+            int count = try_answer_local(ip, name, HOST_FILE_PATH);
+            if (count > 0) {
+                int new_len = transform_to_response(buf, len, (const char (*)[MAX_IP_BUFFER_SIZE])ip, count, &question);
+                send_datagram(listen_fd, buf, new_len, client_info);
+                log_result(";ocal", name);
+            } else {
+                pending_clients[dns_header->id] = client_info;
+                send_datagram(upstream_fd, buf, len, upstream_info);
+                log_result("relay", name);
         }
+        
     }
 
     finalize();
