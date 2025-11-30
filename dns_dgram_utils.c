@@ -86,8 +86,6 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], const char *
             continue;
         }
         
-         printf("DEBUG: Checking line: '%s'\n", line); // Debug print
-
         char *token = strtok(line, " \t");  // 使用空格和制表符分割
         if (token == NULL) {
             continue; // 如果没有找到IP地址，跳过这一行
@@ -100,9 +98,7 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], const char *
         cur_ip[ip_len] = '\0';
 
         while((token = strtok(NULL, " \t"))) {
-             printf("DEBUG: Compare '%s' with '%s'\n", token, name); // Debug print
             if (strcmp(token, name) == 0) {
-                 printf("DEBUG: Match found!\n"); // Debug print
                 memcpy(ip[count], cur_ip, MAX_IP_BUFFER_SIZE);
                 count++;
                 break; // 这一行匹配到了，跳出内层循环，继续读下一行
@@ -148,8 +144,6 @@ int transform_to_response(unsigned char *buf, int len, const char ip[MAX_ANSWER_
             break;
         }
 
-         printf("DEBUG: Processing IP: '%s'\n", ip[i]); // Debug print
-
         // 2.1 NAME: 使用压缩指针指向 Question 的 QNAME
         // 0xC00C 表示指向偏移量 12 (DNS Header 长度)
         // 1100 0000 0000 1100 -> 0xC00C
@@ -168,22 +162,13 @@ int transform_to_response(unsigned char *buf, int len, const char ip[MAX_ANSWER_
         if (inet_pton(AF_INET, ip[i], &addr4) == 1) {
             type = 1;   // A
             rdlen = 4;
-            printf("DEBUG: Parsed as IPv4\n");
         } 
         // 尝试解析为 IPv6
         else if (inet_pton(AF_INET6, ip[i], &addr6) == 1) {
             type = 28;  // AAAA
             rdlen = 16;
-            printf("DEBUG: Parsed as IPv6\n");
         } else {
             // 解析失败，跳过这个 IP
-            printf("DEBUG: Failed to parse IP: '%s'\n", ip[i]);
-            printf("DEBUG: Hex dump of IP string:");
-            for (size_t k = 0; k < strlen(ip[i]); k++) {
-                printf(" %02x", (unsigned char)ip[i][k]);
-            }
-            printf("\n");
-
             // 回退刚才写入的 NAME 指针
             current_len -= 2;
             // 修正 header 里的 count
