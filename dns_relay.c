@@ -120,8 +120,9 @@ int main() {
                 pending_clients[dns_header->id] = client_info;
                 send_datagram(upstream_fd, buf, len, upstream_info);
                 log_result("relay", name);
+            }
         }
-        
+
     }
 
     finalize();
