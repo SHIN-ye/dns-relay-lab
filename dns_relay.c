@@ -115,7 +115,7 @@ int main() {
             if (count > 0) {
                 int new_len = transform_to_response(buf, len, (const char (*)[MAX_IP_BUFFER_SIZE])ip, count, &question);
                 send_datagram(listen_fd, buf, new_len, client_info);
-                log_result(";ocal", name);
+                log_result("local resolve", name);
             } else {
                 pending_clients[dns_header->id] = client_info;
                 send_datagram(upstream_fd, buf, len, upstream_info);

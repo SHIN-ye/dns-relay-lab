@@ -70,6 +70,7 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], const char *
     */
     FILE *fp = fopen(file_path, "r");
     if (fp == NULL) {
+        perror("fopen mappings failed");
         return 0;
     }
     int count = 0;
@@ -85,22 +86,27 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], const char *
             continue;
         }
         
-        char *token = strtok(line, "\t");  // 一段一段读取字符串      
+         printf("DEBUG: Checking line: '%s'\n", line); // Debug print
+
+        char *token = strtok(line, " \t");  // 使用空格和制表符分割
         if (token == NULL) {
             continue; // 如果没有找到IP地址，跳过这一行
         }
 
         char cur_ip[MAX_IP_BUFFER_SIZE];
-        strncpy(cur_ip, token, MAX_IP_BUFFER_SIZE - 1);
-        cur_ip[MAX_IP_BUFFER_SIZE - 1] = '\0';
+        size_t ip_len = strlen(token);
+        if (ip_len >= MAX_IP_BUFFER_SIZE) ip_len = MAX_IP_BUFFER_SIZE - 1;
+        memcpy(cur_ip, token, ip_len);
+        cur_ip[ip_len] = '\0';
 
-        while((token = strtok(NULL, "\t"))) {
+        while((token = strtok(NULL, " \t"))) {
+             printf("DEBUG: Compare '%s' with '%s'\n", token, name); // Debug print
             if (strcmp(token, name) == 0) {
+                 printf("DEBUG: Match found!\n"); // Debug print
                 memcpy(ip[count], cur_ip, MAX_IP_BUFFER_SIZE);
-                ip[count][MAX_IP_BUFFER_SIZE - 1] = '\0';
                 count++;
+                break; // 这一行匹配到了，跳出内层循环，继续读下一行
             }
-            break; // 每行只处理第一个域名
         }
     }
     fclose(fp);
@@ -132,25 +138,57 @@ int transform_to_response(unsigned char *buf, int len, const char ip[MAX_ANSWER_
     header->ra = 1;
     header->rcode = 0; // 正确响应
     header->ancount = htons(count); // 转网络字节序
+    // 2. 移动指针到报文末尾，准备追加 Answer
+    // 此时 len 是原始请求的长度，也就是 Question Section 结束的位置
     int current_len = len;
+
     for (int i = 0; i < count; i++) {
+        // 检查缓冲区是否溢出 (简单检查，假设每个 RR 最大 30 字节左右)
+        if (current_len + 30 > MAX_DATAGRAM_BUFFER_SIZE) {
+            break;
+        }
+
+         printf("DEBUG: Processing IP: '%s'\n", ip[i]); // Debug print
+
+        // 2.1 NAME: 使用压缩指针指向 Question 的 QNAME
+        // 0xC00C 表示指向偏移量 12 (DNS Header 长度)
+        // 1100 0000 0000 1100 -> 0xC00C
         uint16_t name_ptr = htons(0xC00C);
         memcpy(buf + current_len, &name_ptr, 2);
         current_len += 2;
 
+        // 2.2 TYPE, CLASS, TTL, RDLENGTH, RDATA
+        // 我们需要先判断 IP 是 v4 还是 v6 来决定 TYPE 和 RDLENGTH
         struct in_addr addr4;
         struct in6_addr addr6;
-        int type;
-        int rdlen;
-
+        uint16_t type;
+        uint16_t rdlen;
+        
+        // 尝试解析为 IPv4
         if (inet_pton(AF_INET, ip[i], &addr4) == 1) {
-            type = 1;
+            type = 1;   // A
             rdlen = 4;
-        } else if (inet_pton(AF_INET6, ip[i], &addr6) == 1) {
-            type = 28;
+            printf("DEBUG: Parsed as IPv4\n");
+        } 
+        // 尝试解析为 IPv6
+        else if (inet_pton(AF_INET6, ip[i], &addr6) == 1) {
+            type = 28;  // AAAA
             rdlen = 16;
+            printf("DEBUG: Parsed as IPv6\n");
         } else {
-            continue; // 无效的IP地址，跳过
+            // 解析失败，跳过这个 IP
+            printf("DEBUG: Failed to parse IP: '%s'\n", ip[i]);
+            printf("DEBUG: Hex dump of IP string:");
+            for (size_t k = 0; k < strlen(ip[i]); k++) {
+                printf(" %02x", (unsigned char)ip[i][k]);
+            }
+            printf("\n");
+
+            // 回退刚才写入的 NAME 指针
+            current_len -= 2;
+            // 修正 header 里的 count
+            header->ancount = htons(ntohs(header->ancount) - 1);
+            continue;
         }
 
         uint16_t type_net = htons(type);
@@ -179,5 +217,5 @@ int transform_to_response(unsigned char *buf, int len, const char ip[MAX_ANSWER_
 
     }
     
-    return len;
+    return current_len;
 }
