@@ -68,11 +68,7 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], const char *
     /* 
         TODO: implement this function 
     */
-    FILE *fp = fopen(file_path, "r");
-    if (fp == NULL) {
-        perror("fopen mappings failed");
-        return 0;
-    }
+    FILE *fp = fopen(file_path, "r"); // 只读
     int count = 0;
     char line[1024]; // 字符串是只读的, 所以必须使用数组来存储读取的行
     
@@ -88,12 +84,12 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], const char *
         
         char *token = strtok(line, " \t");  // 使用空格和制表符分割
         if (token == NULL) {
-            continue; // 如果没有找到IP地址，跳过这一行
+            continue; 
         }
 
         char cur_ip[MAX_IP_BUFFER_SIZE];
         size_t ip_len = strlen(token);
-        if (ip_len >= MAX_IP_BUFFER_SIZE) ip_len = MAX_IP_BUFFER_SIZE - 1;
+        if (ip_len >= MAX_IP_BUFFER_SIZE) ip_len = MAX_IP_BUFFER_SIZE - 1; //缓冲
         memcpy(cur_ip, token, ip_len);
         cur_ip[ip_len] = '\0';
 
@@ -129,14 +125,13 @@ int transform_to_response(unsigned char *buf, int len, const char ip[MAX_ANSWER_
     (void)question;
     // 1. 修改 DNS Header
     dns_header_t *header = (dns_header_t *)buf;
-    header->qr = 1;
-    header->aa = 1; 
-    header->ra = 1;
+    header->qr = 1; // 表示这是响应
+    header->aa = 1; // 权威回答
+    header->ra = 1; // 递归可用
     header->rcode = 0; // 正确响应
-    header->ancount = htons(count); // 转网络字节序
-    // 2. 移动指针到报文末尾，准备追加 Answer
-    // 此时 len 是原始请求的长度，也就是 Question Section 结束的位置
-    int current_len = len;
+    header->ancount = htons(count); 
+    
+    int current_len = len; // Question Section 结束的位置
 
     for (int i = 0; i < count; i++) {
         // 检查缓冲区是否溢出 (简单检查，假设每个 RR 最大 30 字节左右)
@@ -144,32 +139,28 @@ int transform_to_response(unsigned char *buf, int len, const char ip[MAX_ANSWER_
             break;
         }
 
-        // 2.1 NAME: 使用压缩指针指向 Question 的 QNAME
-        // 0xC00C 表示指向偏移量 12 (DNS Header 长度)
-        // 1100 0000 0000 1100 -> 0xC00C
+        // 压缩指针指向 Question 的 QNAME
         uint16_t name_ptr = htons(0xC00C);
         memcpy(buf + current_len, &name_ptr, 2);
         current_len += 2;
 
         // 2.2 TYPE, CLASS, TTL, RDLENGTH, RDATA
-        // 我们需要先判断 IP 是 v4 还是 v6 来决定 TYPE 和 RDLENGTH
+        // 我们需要先判断 IP 是 v4 还是 v6 `
         struct in_addr addr4;
         struct in6_addr addr6;
         uint16_t type;
         uint16_t rdlen;
         
-        // 尝试解析为 IPv4
-        if (inet_pton(AF_INET, ip[i], &addr4) == 1) {
-            type = 1;   // A
+        if (inet_pton(AF_INET, ip[i], &addr4) == 1) { // 这里将ip存放在 &addr4中
+            type = 1;   
             rdlen = 4;
         } 
-        // 尝试解析为 IPv6
+
         else if (inet_pton(AF_INET6, ip[i], &addr6) == 1) {
             type = 28;  // AAAA
             rdlen = 16;
         } else {
-            // 解析失败，跳过这个 IP
-            // 回退刚才写入的 NAME 指针
+            // 解析失败，跳过这个 IP,回退刚才写入的 NAME 指针
             current_len -= 2;
             // 修正 header 里的 count
             header->ancount = htons(ntohs(header->ancount) - 1);
