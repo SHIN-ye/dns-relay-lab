@@ -7,6 +7,7 @@
 #include <string.h>
 #include "dns_relay.h"
 #include "dns_dgram_utils.h"
+#include <strings.h> 
 
 /*
     parse the domain name, type and class from question section of a dns datagram
@@ -25,11 +26,28 @@ void parse_question_section(char *name, dns_question_t *question, const unsigned
     */
     const unsigned char *p = buf + DNS_HEADER_SIZE; 
     int name_pos = 0;
+    int loop_limit = 0; // 防止死循环
 
     while(1) {
+        if (loop_limit++ > 100) { // 域名通常不会超过255字节
+            break;
+        }
+
         unsigned char len = *p++;
         if (len == 0) {
             break;
+        }
+
+        // Label长度不能超过63
+        if (len > 63) {
+            name[0] = '\0'; // 标记为解析失败或空
+            return;
+        }
+
+        // 防止name缓冲区溢出
+        if (name_pos + len + 1 >= MAX_DOMAIN_NAME_BUFFER_SIZE) {
+            name[0] = '\0';
+            return;
         }
 
         for (int i = 0; i < len; i++) {
@@ -69,16 +87,22 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], const char *
         TODO: implement this function 
     */
     FILE *fp = fopen(file_path, "r"); // 只读
+    if (fp == NULL) {
+        return 0;
+    }
+
     int count = 0;
     char line[1024]; // 字符串是只读的, 所以必须使用数组来存储读取的行
     
     while (fgets(line, sizeof(line), fp)) {
+        if (count >= MAX_ANSWER_COUNT) break;
         size_t len = strlen(line);
-        if (len > 0 && line[len - 1] == '\n') {
-            line[len - 1] = '\0'; // 去掉换行符
+        // 处理换行符
+        while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r')) {
+            line[--len] = '\0';
         }
 
-        if (line[0] == '#' || strlen(line) == 0) {
+        if (line[0] == '#' || len == 0) {
             continue;
         }
         
@@ -94,10 +118,11 @@ int try_answer_local(char ip[MAX_ANSWER_COUNT][MAX_IP_BUFFER_SIZE], const char *
         cur_ip[ip_len] = '\0';
 
         while((token = strtok(NULL, " \t"))) {
+            // 若使用strcasecmp可以忽略大小写
             if (strcmp(token, name) == 0) {
                 memcpy(ip[count], cur_ip, MAX_IP_BUFFER_SIZE);
                 count++;
-                break; // 这一行匹配到了，跳出内层循环，继续读下一行
+                break; 
             }
         }
     }
@@ -134,24 +159,24 @@ int transform_to_response(unsigned char *buf, int len, const char ip[MAX_ANSWER_
     int current_len = len; // Question Section 结束的位置
 
     for (int i = 0; i < count; i++) {
-        // 检查缓冲区是否溢出 (简单检查，假设每个 RR 最大 30 字节左右)
+        // 检查缓冲区是否溢出
         if (current_len + 30 > MAX_DATAGRAM_BUFFER_SIZE) {
             break;
         }
 
-        // 压缩指针指向 Question 的 QNAME
+        // 压缩指针指向Question的QNAME
         uint16_t name_ptr = htons(0xC00C);
         memcpy(buf + current_len, &name_ptr, 2);
         current_len += 2;
 
         // 2.2 TYPE, CLASS, TTL, RDLENGTH, RDATA
-        // 我们需要先判断 IP 是 v4 还是 v6 `
+        // 我们需要先判断IP是v4还是 v6 
         struct in_addr addr4;
         struct in6_addr addr6;
         uint16_t type;
         uint16_t rdlen;
         
-        if (inet_pton(AF_INET, ip[i], &addr4) == 1) { // 这里将ip存放在 &addr4中
+        if (inet_pton(AF_INET, ip[i], &addr4) == 1) { // 这里将ip存放在&addr4中
             type = 1;   
             rdlen = 4;
         } 
@@ -160,9 +185,9 @@ int transform_to_response(unsigned char *buf, int len, const char ip[MAX_ANSWER_
             type = 28;  // AAAA
             rdlen = 16;
         } else {
-            // 解析失败，跳过这个 IP,回退刚才写入的 NAME 指针
+            // 解析失败，跳过这个IP,回退刚才写入的NAME指针
             current_len -= 2;
-            // 修正 header 里的 count
+            // 修正header里的count
             header->ancount = htons(ntohs(header->ancount) - 1);
             continue;
         }
