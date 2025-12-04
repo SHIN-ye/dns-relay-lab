@@ -29,7 +29,7 @@ void parse_question_section(char *name, dns_question_t *question, const unsigned
     int loop_limit = 0; // 防止死循环
 
     while(1) {
-        if (loop_limit++ > 100) { // 域名通常不会超过255字节
+        if (loop_limit++ > 100) { 
             break;
         }
 
